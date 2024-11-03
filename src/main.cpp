@@ -11,10 +11,14 @@
 HHOOK hKeyboardHook;
 HWND hOverlayWnd = nullptr;
 NOTIFYICONDATA nid = {};
+float lastVolume = -1.0f; // To store the last volume level
+bool isMuted = false; // To check if the volume is muted
 
 // Forward declarations
 void ShowOverlay(int volume);
 void ChangeVolume(float change);
+void MuteVolume();
+void RestoreVolume();
 void CreateTrayIcon(HWND hwnd);
 void RemoveTrayIcon();
 void ShowContextMenu(HWND hwnd);
@@ -89,12 +93,68 @@ void ChangeVolume(float change) {
     CoUninitialize();
 }
 
+// Function to mute the system volume
+void MuteVolume() {
+    if (!isMuted) {
+        CoInitialize(nullptr);
+        IMMDeviceEnumerator* deviceEnumerator = nullptr;
+        IMMDevice* defaultDevice = nullptr;
+        IAudioEndpointVolume* endpointVolume = nullptr;
+
+        if (CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER, __uuidof(IMMDeviceEnumerator), (void**)&deviceEnumerator) == S_OK) {
+            if (deviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &defaultDevice) == S_OK) {
+                if (defaultDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, (void**)&endpointVolume) == S_OK) {
+                    endpointVolume->GetMasterVolumeLevelScalar(&lastVolume); // Save current volume
+                    endpointVolume->SetMasterVolumeLevelScalar(0.0f, nullptr); // Mute
+                    ShowOverlay(0);
+                    isMuted = true;
+                }
+                endpointVolume->Release();
+                defaultDevice->Release();
+            }
+            deviceEnumerator->Release();
+        }
+        CoUninitialize();
+    }
+}
+
+// Function to restore the volume to the last known level
+void RestoreVolume() {
+    if (isMuted) {
+        CoInitialize(nullptr);
+        IMMDeviceEnumerator* deviceEnumerator = nullptr;
+        IMMDevice* defaultDevice = nullptr;
+        IAudioEndpointVolume* endpointVolume = nullptr;
+
+        if (CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER, __uuidof(IMMDeviceEnumerator), (void**)&deviceEnumerator) == S_OK) {
+            if (deviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &defaultDevice) == S_OK) {
+                if (defaultDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, (void**)&endpointVolume) == S_OK) {
+                    endpointVolume->SetMasterVolumeLevelScalar(lastVolume, nullptr); // Restore volume
+                    ShowOverlay(static_cast<int>(lastVolume * 100));
+                    isMuted = false;
+                }
+                endpointVolume->Release();
+                defaultDevice->Release();
+            }
+            deviceEnumerator->Release();
+        }
+        CoUninitialize();
+    }
+}
+
 // Keyboard hook procedure
 LRESULT CALLBACK KeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION) {
         KBDLLHOOKSTRUCT* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
         if (wParam == WM_KEYDOWN) {
-            if (pKeyBoard->vkCode == VK_F6) {
+            if (pKeyBoard->vkCode == VK_F5) {
+                if (isMuted) {
+                    RestoreVolume();
+                } else {
+                    MuteVolume();
+                }
+                return 1;
+            } else if (pKeyBoard->vkCode == VK_F6) {
                 ChangeVolume(-0.1f);
                 return 1;
             } else if (pKeyBoard->vkCode == VK_F7) {

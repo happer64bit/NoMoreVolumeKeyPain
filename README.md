@@ -4,7 +4,17 @@
 
 ## Why This App?
 
-Honestly, this app was created out of frustration. Many keyboards make you press **Fn** along with the volume keys, which can get annoying fast if you’re frequently adjusting volume. **No More Volume Key Pain** is here to save the day by letting you adjust the volume with a single press of **F6** (volume down) and **F7** (volume up). Simple as that!
+Honestly, this app was created out of frustration. Many keyboards make you press **Fn** along with the volume keys, which can get annoying fast if you’re frequently adjusting volume.
+
+- `F5` - Mute/Unmute
+- `F6` - Volume Down
+- `F7` - Volume Up
+
+## Stopping the App
+
+You can easily stop the app from tray menu.
+
+![alt](./res/screenshot.png)
 
 ## Features
 
